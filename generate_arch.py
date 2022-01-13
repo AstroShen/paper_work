@@ -288,10 +288,10 @@ def add_sb2sb_edge(G):
     }
     sb_rules = [pat for pat in General_route_rule if pat[0].endswith(
         'range') and pat[1].endswith('range')]
-    wires_by_ble = {}
+    wires_by_lane = {}
     for node in G.nodes(data=True):
         if node[-1]['node_type'] in ('h_track', 'v_track'):
-            wires_by_ble.setdefault(node[-1]['ble'], []).append(node)
+            wires_by_lane.setdefault(node[-1]['lane'], []).append(node)
 
     def get_wires_by_dir(wires, direction): return [wires[i] for i in range(
         len(wires)) if wires[i][-1]['direction'] == direction]
@@ -303,8 +303,8 @@ def add_sb2sb_edge(G):
         len(wires)) if wires[i][-1]['wire_range'] == wire_range]
     def get_wires_by_len(wires, length): return [wires[i] for i in range(
         len(wires)) if wires[i][-1]['length'] == length]
-    for ble in range(N):
-        wires_of_ble = wires_by_ble[ble]
+    for lane in range(Lane_num):
+        wires_of_lane = wires_by_lane[lane]
         for turn in wilton_offset_dict:
             src_dir = turn[0]
             sink_dir = turn[1]
@@ -330,9 +330,11 @@ def add_sb2sb_edge(G):
                         src_len = drive_comb[0]
                         sink_len = drive_comb[1]
                         src_wires = get_wires_by_beg(get_wires_by_len(
-                            get_wires_by_dir(wires_of_ble, src_dir), src_len), 0)
+                            get_wires_by_dir(wires_of_lane, src_dir), src_len), 0)
                         sink_wires = get_wires_by_beg(get_wires_by_len(
-                            get_wires_by_dir(wires_of_ble, sink_dir), sink_len), 1)
+                            get_wires_by_dir(wires_of_lane, sink_dir), sink_len), 1)
+                        src_wires = sorted(src_wires, key = lambda wire:(wire[1]['ble'], wire[1]['wire_cnt']))
+                        sink_wires = sorted(sink_wires, key = lambda wire:(wire[1]['ble'], wire[1]['wire_cnt']))
                         # print('drive_comb: %s' % str(drive_comb))
                         # for i in src_wires:
                         #     print(i[0])
@@ -346,15 +348,14 @@ def add_sb2sb_edge(G):
                             # # uncomment the following `if` when every src_wire will connect to a sink_wire
                             if index == num_sink_wires:
                                 break
-                            t = src_wire[1]['wire_cnt']
+                            t = index
                             sink_t = offset_formula(t, w)
                             try:
                                 assert sink_t >= 0 and sink_t < num_sink_wires
                             except:
                                 print('sink_t: %s' % sink_t, 'num_sink_wires: %s' % num_sink_wires,
                                       'src_t: %s' % t, 'num_src_wires: %s' % num_src_wires)
-                            sink_wire = list(
-                                filter(lambda x: x[1]['wire_cnt'] == sink_t, sink_wires))[0]
+                            sink_wire = sink_wires[sink_t]
                             # print(10*'-', sink_wire[0])
                             G.add_edge(
                                 src_wire[0], sink_wire[0], mux_type='L%d' % sink_wire[1]['length'])
@@ -563,13 +564,15 @@ def generate_arch_file(G):
     leim_inst_str = '\n'.join(leim_inst_list.values())
     driver_mux_inst_str = '\n'.join(driver_mux_inst_list.values())
     seg_group_inst_str = '\n'.join(seg_group_inst_list)
+    gsb_seg_group_str = '<gsb gsb_seg_group="%d" name="gsb" pbtype_name="plb memory io mult_36">\n' % len(H_wires)
     switch_pat = re.compile(r'%switch%')
     segment_pat = re.compile(r'%segment%')
     lim_pat = re.compile(r'%lim_mux%')
     leim_pat = re.compile(r'%leim_mux%')
     driver_mux_pat = re.compile(r'%driver_mux%')
     seg_group_pat = re.compile(r'%seg_group%')
-    arch_file_template = open('./arch_file.template', 'rt')
+    gsb_seg_group_pat = re.compile(r'gsb_seg_group')
+    arch_file_template = open('./arch_file_template', 'rt')
     with open('./arch_file.xml', 'wt') as fp:
         for line in arch_file_template:
             line = re.sub(switch_pat, switch_inst_str, line)
@@ -578,6 +581,8 @@ def generate_arch_file(G):
             line = re.sub(leim_pat, leim_inst_str, line)
             line = re.sub(driver_mux_pat, driver_mux_inst_str, line)
             line = re.sub(seg_group_pat, seg_group_inst_str, line)
+            if gsb_seg_group_pat.search(line):
+                line = gsb_seg_group_str
             fp.write(line)
     arch_file_template.close()
 
