@@ -107,10 +107,7 @@
 %seg_group%
 			<multistage_muxs>
         <first_stage switch_name='delay_less'>
-					<mux name="mux-1-0">
-						<from from_detail="W0" name="L1" switchpoint="0" type="seg"/>
-						<from from_detail="E0" name="L1" switchpoint="0" type="seg"/>
-					</mux>
+%first_stage_driver_mux%
 				</first_stage>
 				<second_stage>
 %driver_mux%
