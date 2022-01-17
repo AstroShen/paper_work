@@ -1,9 +1,6 @@
 <?xml version="1.0"?>
 <routing_arch>
-  <local_routing K="6" N="8" lane_num="4" I="60" O="16" fd="0.5" interlane_con_dir="1">
-    <LIM mux_size="8"/>
-    <LEIM full_crossbar="1"/>
-  </local_routing>
+%local_routing%
   <general_routing pattern="wilton" interlane_con_dir="0">
     <horizontal>
       <short_range name="L1" length="1" num_per_lut="2" layer="My"/>

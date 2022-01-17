@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import argparse
 import networkx as nx
 import re
+import os
 from itertools import chain
 import pysnooper
 # import matplotlib.pyplot as plt
@@ -97,20 +98,20 @@ def add_channels_node(G):
                 name = 'lane_%d_ble_%d_V%d_%s_%d_end' % (
                     lane_cnt, ble_cnt, length, cur_dir, ble_i_cnt)
                 G.add_node(name, node_type='v_track', length=length, lane=lane_cnt, ble=ble_cnt, wire_cnt=ble_i_cnt,
-                            direction=cur_dir, layer=layer, wire_range=wire_range, begin=0, num_per_lut=num_per_lut)
+                           direction=cur_dir, layer=layer, wire_range=wire_range, begin=0, num_per_lut=num_per_lut)
                 name = 'lane_%d_ble_%d_V%d_%s_%d_beg' % (
                     lane_cnt, ble_cnt, length, cur_dir, ble_i_cnt)
                 G.add_node(name, node_type='v_track', length=length, lane=lane_cnt, ble=ble_cnt, wire_cnt=ble_i_cnt,
-                            direction=cur_dir, layer=layer, wire_range=wire_range, begin=1, num_per_lut=num_per_lut)
+                           direction=cur_dir, layer=layer, wire_range=wire_range, begin=1, num_per_lut=num_per_lut)
             else:
                 name = 'lane_%d_ble_%d_H%d_%s_%d_end' % (
                     lane_cnt, ble_cnt, length, cur_dir, ble_i_cnt)
                 G.add_node(name, node_type='h_track', length=length, lane=lane_cnt, ble=ble_cnt, wire_cnt=ble_i_cnt,
-                            direction=cur_dir, layer=layer, wire_range=wire_range, begin=0, num_per_lut=num_per_lut)
+                           direction=cur_dir, layer=layer, wire_range=wire_range, begin=0, num_per_lut=num_per_lut)
                 name = 'lane_%d_ble_%d_H%d_%s_%d_beg' % (
                     lane_cnt, ble_cnt, length, cur_dir, ble_i_cnt)
                 G.add_node(name, node_type='h_track', length=length, lane=lane_cnt, ble=ble_cnt, wire_cnt=ble_i_cnt,
-                            direction=cur_dir, layer=layer, wire_range=wire_range, begin=1, num_per_lut=num_per_lut)
+                           direction=cur_dir, layer=layer, wire_range=wire_range, begin=1, num_per_lut=num_per_lut)
     #
     #         name = 'lane_%d_ble_%d_H%d_W_%d_beg' % (
     #             lane_cnt, ble_cnt, length, ble_i_cnt)
@@ -217,13 +218,13 @@ def add_sb2lim_edge(G):
             lim_by_lane.setdefault(lane_cnt, []).append(node)
     dir_lut = ('N', 'W', 'S', 'E')
     lim_cnt = 0
-    def get_wires_by_dir(wires, direction): return (
-        wires for wire in wires if wire[-1]['direction'] == direction)
+    # def get_wires_by_dir(wires, direction): return (
+    #     wires for wire in wires if wire[-1]['direction'] == direction)
     for lane in range(Lane_num):
         lims_of_lane = lim_by_lane[lane]
         wires_of_lane = [] + h_wires_by_lane[lane] + v_wires_by_lane[lane]
         dir_wire_cursor_lut = {'N': 0, 'W': 0, 'E': 0, 'S': 0}
-        for lim, attrs in lims_of_lane:
+        for lim, _ in lims_of_lane:
             dir_str = dir_lut[lim_cnt % 4]
             lim_cnt += 1
             wires_of_dir = []
@@ -398,7 +399,7 @@ def add_sb2sb_edge(G):
             # driving_ble_map = {0: [1, 2], 1: [3], 2: [
             #     4], 3: [5], 4: [6], 5: [7], 6: [7], 7: []}
             driving_ble_map = {0: [1, 2], 1: [3, 0], 2: [2,
-                4], 3: [1, 5], 4: [2,6], 5: [3,7], 6: [4,7], 7: [5,6]}
+                                                         4], 3: [1, 5], 4: [2, 6], 5: [3, 7], 6: [4, 7], 7: [5, 6]}
         for ble in range(N):
             driving_bles = driving_ble_map[ble]
             if not driving_bles:
@@ -406,15 +407,18 @@ def add_sb2sb_edge(G):
             wires_of_ble = get_wires_by_beg(wires_by_ble[ble], 1)
             wires_of_driving_ble = []
             for driving_ble in driving_bles:
-                wires_of_driving_ble = wires_of_driving_ble + get_wires_by_beg(wires_by_ble[driving_ble], 1)
+                wires_of_driving_ble = wires_of_driving_ble + \
+                    get_wires_by_beg(wires_by_ble[driving_ble], 1)
             for wire, attrs in wires_of_ble:
                 node_type = attrs['node_type']
                 length = attrs['length']
                 direction = attrs['direction']
                 wire_cnt = attrs['wire_cnt']
-                driving_wires = list(filter(lambda x:x[1]['node_type'] == node_type and x[1]['length'] == length and x[1]['direction'] == direction and x[1]['wire_cnt'] == wire_cnt, wires_of_driving_ble))
+                driving_wires = list(filter(lambda x: x[1]['node_type'] == node_type and x[1]['length'] ==
+                                     length and x[1]['direction'] == direction and x[1]['wire_cnt'] == wire_cnt, wires_of_driving_ble))
                 for driving_wire in driving_wires:
-                    G.add_edge(driving_wire[0], wire, mux_type='L%d_medium'%length)
+                    G.add_edge(driving_wire[0], wire,
+                               mux_type='L%d_medium' % length)
 
 
 def add_out2sb_edge(G):
@@ -594,10 +598,11 @@ def generate_arch_file(G):
                 src_attrs = G.nodes[src_node]
                 if src_attrs['node_type'] in ('h_track', 'v_track'):
                     if src_attrs['begin'] == 1:
-                        from_first_stage_mux.append('%s_ble_%d_L%d_%d' % (src_attrs['direction'], src_attrs['ble'], src_attrs['length'], src_attrs['ble']*src_attrs['num_per_lut']+src_attrs['wire_cnt']))
+                        from_first_stage_mux.append('%s_ble_%d_L%d_%d' % (
+                            src_attrs['direction'], src_attrs['ble'], src_attrs['length'], src_attrs['ble']*src_attrs['num_per_lut']+src_attrs['wire_cnt']))
                     else:
                         mux_inst += mux_detail_template % ('%s%d' % (reverse_dir[src_attrs['direction']], src_attrs['ble']
-                                                       * src_attrs['num_per_lut']+src_attrs['wire_cnt']), 'L%d' % src_attrs['length'], 'seg')
+                                                                     * src_attrs['num_per_lut']+src_attrs['wire_cnt']), 'L%d' % src_attrs['length'], 'seg')
                 elif src_attrs['node_type'] == 'output':
                     # TODO: i assume the output can have at most 2 outputs (o, q) per ble
                     mux_inst += mux_detail_template % ('%s:%d' % (
@@ -605,16 +610,19 @@ def generate_arch_file(G):
                 else:
                     # TODO: lim mux may have sources from other lims of leims, it depends later.
                     exit(-1)
-            mux_inst += '\t<from mux_name="%s"/>\n' % ' '.join(from_first_stage_mux)
+            mux_inst += '\t<from mux_name="%s"/>\n' % ' '.join(
+                from_first_stage_mux)
             mux_inst += '</mux>'
-            
+
             # add first stage mux
             driver_mux_inst_list[mux_name] = mux_inst
             for first_stage_mux in from_first_stage_mux:
                 if first_stage_mux not in first_stage_driver_mux_inst_list:
-                    from_detail = first_stage_mux.split('_')[0] + first_stage_mux.split('_')[-1]
+                    from_detail = first_stage_mux.split(
+                        '_')[0] + first_stage_mux.split('_')[-1]
                     wire_name = first_stage_mux.split('_')[3]
-                    first_stage_mux_inst = '<mux name="%s">\n\t<from from_detail="%s" name="%s" switchpoint="0" type="seg"/>\n</mux>' % (first_stage_mux, from_detail, wire_name)
+                    first_stage_mux_inst = '<mux name="%s">\n\t<from from_detail="%s" name="%s" switchpoint="0" type="seg"/>\n</mux>' % (
+                        first_stage_mux, from_detail, wire_name)
                     first_stage_driver_mux_inst_list[first_stage_mux] = first_stage_mux_inst
         else:
             exit(-1)
@@ -633,7 +641,8 @@ def generate_arch_file(G):
     lim_inst_str = '\n'.join(lim_inst_list.values())
     leim_inst_str = '\n'.join(leim_inst_list.values())
     driver_mux_inst_str = '\n'.join(driver_mux_inst_list.values())
-    first_stage_driver_mux_inst_str = '\n'.join(first_stage_driver_mux_inst_list.values())
+    first_stage_driver_mux_inst_str = '\n'.join(
+        first_stage_driver_mux_inst_list.values())
     seg_group_inst_str = '\n'.join(seg_group_inst_list)
     gsb_seg_group_str = '<gsb gsb_seg_group="%d" name="gsb" pbtype_name="plb memory io mult_36">\n' % len(
         H_wires)
@@ -645,15 +654,21 @@ def generate_arch_file(G):
     first_stage_driver_mux_pat = re.compile(r'%first_stage_driver_mux%')
     seg_group_pat = re.compile(r'%seg_group%')
     gsb_seg_group_pat = re.compile(r'gsb_seg_group')
-    arch_file_template = open('./arch_file_template.xml', 'rt')
-    with open('./arch_file.xml', 'wt') as fp:
+
+    CWD = os.getcwd()
+    target_dir = os.path.join(CWD, 'arch/arch_inst')
+    template_file_name = 'arch_file_template.xml'
+    arch_file_template = open(os.path.join(os.path.dirname(target_dir), template_file_name), 'rt')
+    arch_file_inst = os.path.basename(routing_arch)
+    with open(os.path.join(target_dir, arch_file_inst), 'wt') as fp:
         for line in arch_file_template:
             line = re.sub(switch_pat, switch_inst_str, line)
             line = re.sub(segment_pat, segment_inst_str, line)
             line = re.sub(lim_pat, lim_inst_str, line)
             line = re.sub(leim_pat, leim_inst_str, line)
             line = re.sub(driver_mux_pat, driver_mux_inst_str, line)
-            line = re.sub(first_stage_driver_mux_pat, first_stage_driver_mux_inst_str, line)
+            line = re.sub(first_stage_driver_mux_pat,
+                          first_stage_driver_mux_inst_str, line)
             line = re.sub(seg_group_pat, seg_group_inst_str, line)
             if gsb_seg_group_pat.search(line):
                 line = gsb_seg_group_str
