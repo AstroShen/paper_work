@@ -8,3 +8,8 @@
 5. arch文件夹下面包含产生二级互连模式描述文件和VPR架构描述文件的模板，程序输出结果也是在这个文件夹下，arch/top_arch_inst为生成的二级互连模式描述文件，arch/arch_inst为生成的VPR架构描述文件，arch/config.txt为跑VPR task所用的配置文件，具体参考VPR使用情况；
 6. results文件夹下为我自己产生的一些数据，下面包含一些解析VPR输出文件的一些脚本，用于快速得到数据，属于文本数据处理工作;
 7. 本目录下别的文件为tmp，可以忽略；
+# 使用示例
+使用generate_arch.py跑单个二级互连模式时，只需要指定二级互连模式描述文件。其可由arch/top_arch_template.xml产生。
+python3 -u generate_arch.py top_arch_inst/xml/path
+arch_exploration.py会利用top_arch_template.xml产生大量的top_arch_inst，再产生对应的arch_inst。
+python3 -u arch_exploration.py
