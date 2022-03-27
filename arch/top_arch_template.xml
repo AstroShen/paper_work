@@ -3,52 +3,19 @@
 %local_routing%
   <general_routing pattern="wilton" interlane_con_dir="0">
     <horizontal>
-      <short_range name="L1" length="1" num_per_lut="2" layer="My"/>
+      <short_range name="L1" length="1" num_per_lut="4" layer="My"/>
       <short_range name="L2" length="2" num_per_lut="1" layer="My"/>
-      <mid_range name="L4" length="4" num_per_lut="1" layer="My"/>
+      <mid_range name="L4" length="4" num_per_lut="2" layer="My"/>
       <mid_range name="L6" length="6" num_per_lut="1" layer="My"/>
       <!-- <long_range name="L12" length="12" num_per_lut='2' layer="Mz"/> -->
     </horizontal>
     <vertical>
-      <short_range name="L1" length="1" num_per_lut="2" layer="My"/>
+      <short_range name="L1" length="1" num_per_lut="4" layer="My"/>
       <short_range name="L2" length="2" num_per_lut="1" layer="My"/>
-      <mid_range name="L4" length="4" num_per_lut="1" layer="My"/>
+      <mid_range name="L4" length="4" num_per_lut="2" layer="My"/>
       <mid_range name="L6" length="6" num_per_lut="1" layer="My"/>
       <!-- <long_range name="12" length="12" num_per_lut="2" layer="Mz"/> -->
     </vertical>
-    <!-- three kinds of wire type hierarchies: snap_wilton, isolation, fuse(sub hierarchies...) -->
-    <!-- <topology name="l1"> -->
-    <!--   <rule source="O" sink="short_range"/> -->
-    <!--   <rule source="short_range" sink="short_range"/> -->
-    <!--   <rule source="short_range" sink="I"/> -->
-    <!-- </topology> -->
-    <topology name="fuse_o2m_s2i_m2s">
-      <rule source="O" sink="mid_range"/>
-      <rule source="O" sink="short_range"/>
-      <rule source="short_range" sink="I"/>
-      <rule source="short_range" sink="short_range"/>
-      <rule source="mid_range" sink="mid_range"/>
-      <rule source="mid_range" sink="short_range"/>
-    </topology>
-    <!-- <topology name="fuse_o2s_o2m_s2i_m2i_m2s"> -->
-    <!--   <rule source="O" sink="short_range"/> -->
-    <!--   <rule source="O" sink="mid_range"/> -->
-    <!--   <rule source="short_range" sink="I"/> -->
-    <!--   <rule source="mid_range" sink="I"/> -->
-    <!--   <rule source="short_range" sink="short_range"/> -->
-    <!--   <rule source="mid_range" sink="mid_range"/> -->
-    <!--   <rule source="mid_range" sink="short_range"/> -->
-    <!-- </topology> -->
-    <!-- <topology name="fuse_o2s_o2m_s2i_m2i_m2s_s2m"> -->
-    <!--   <rule source="O" sink="short_range"/> -->
-    <!--   <rule source="O" sink="mid_range"/> -->
-    <!--   <rule source="short_range" sink="I"/> -->
-    <!--   <rule source="mid_range" sink="I"/> -->
-    <!--   <rule source="short_range" sink="short_range"/> -->
-    <!--   <rule source="mid_range" sink="mid_range"/> -->
-    <!--   <rule source="short_range" sink="mid_range"/> -->
-    <!--   <rule source="mid_range" sink="short_range"/> -->
-    <!-- </topology> -->
-    <!-- <active_topology name="fuse_o2m_s2i_m2s"/> -->
+%topology%
   </general_routing>
 </routing_arch>

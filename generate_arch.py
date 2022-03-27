@@ -5,6 +5,7 @@ import networkx as nx
 import re
 import os
 from itertools import chain
+from itertools import product
 import pysnooper
 
 # import matplotlib.pyplot as plt
@@ -273,6 +274,21 @@ def add_feedback_edge(G):
             G.add_edge(out_node, leim_node, mux_type="leim")
             ble_cnt += 1
 
+def expand_range_2_wires(ranges):
+    def get_wires_of_range(x):
+        wires = []
+        for wire in H_wires:
+            if wire['range'] == x:
+                wires.append(wire['name'])
+        return wires
+    ret = []
+    for i in ranges:
+        if i.endswith('_range'):
+            ret.extend(get_wires_of_range(i))
+        else:
+            ret.append(i)
+    return ret
+
 
 def add_sb2lim_edge(G):
     input_pattern = list(filter(lambda x: x[-1] == "I", General_route_rule))
@@ -281,7 +297,7 @@ def add_sb2lim_edge(G):
     for node in G.nodes(data=True):
         if node[1]["node_type"] in ("h_track", "v_track") and node[1]["begin"] == 0:
             lane_cnt = node[1]["lane"]
-            if node[1]["wire_range"] in [source for source, _ in input_pattern]:
+            if 'L%d'%node[1]["length"] in expand_range_2_wires([source for source, _ in input_pattern]):
                 if node[1]["node_type"] == "h_track":
                     h_wires_by_lane.setdefault(lane_cnt, []).append(node)
                 else:
@@ -389,8 +405,21 @@ def add_sb2sb_edge(G):
     sb_rules = [
         pat
         for pat in General_route_rule
-        if pat[0].endswith("range") and pat[1].endswith("range")
+        if (pat[0].endswith("range") or pat[0].startswith('L')) and (pat[1].endswith("range") or pat[1].startswith('L'))
     ]
+    more_concise_sb_rules = []
+    for pat in sb_rules:
+        pat_source = []
+        pat_sink = []
+        if pat[0].endswith('range'):
+            pat_source = expand_range_2_wires([pat[0]])
+        else:
+            pat_source = [pat[0]]
+        if pat[1].endswith('range'):
+            pat_sink = expand_range_2_wires([pat[1]])
+        else:
+            pat_sink = [pat[1]]
+        more_concise_sb_rules.extend(product(pat_source, pat_sink))
     wires_by_lane = {}
     for node in G.nodes(data=True):
         if node[-1]["node_type"] in ("h_track", "v_track"):
@@ -428,86 +457,86 @@ def add_sb2sb_edge(G):
             else:
                 assert SB_pattern == "disjoint"
                 offset_formula = disjoint_offset_dict[turn]
-            for sb_rule in sb_rules:
-                src_range = sb_rule[0]
-                sink_range = sb_rule[1]
+            for sb_rule in more_concise_sb_rules:
+                src_wire_name = sb_rule[0]
+                sink_wire_name = sb_rule[1]
                 # sb pattern between wires of same length should be (wilton, disjoint, universal)
-                src_wires_len_of_range = tuple(
-                    set(
-                        [
-                            wire["length"]
-                            for wire in H_wires + V_wires
-                            if wire["range"] == src_range
-                        ]
-                    )
+                # src_wires_len_of_range = tuple(
+                #     set(
+                #         [
+                #             wire["length"]
+                #             for wire in H_wires + V_wires
+                #             if wire["range"] == src_range
+                #         ]
+                #     )
+                # )
+                # sink_wires_len_of_range = tuple(
+                #     set(
+                #         [
+                #             wire["length"]
+                #             for wire in H_wires + V_wires
+                #             if wire["range"] == sink_range
+                #         ]
+                #     )
+                # )
+                # for wire_len in src_wires_len_of_range:
+                #     exact_drive_combs = tuple(
+                #         [(wire_len, x) for x in sink_wires_len_of_range]
+                #     )
+                    # for drive_comb in exact_drive_combs:
+                src_len = int(src_wire_name[1:])
+                sink_len = int(sink_wire_name[1:])
+                src_wires = get_wires_by_beg(
+                    get_wires_by_len(
+                        get_wires_by_dir(wires_of_lane, src_dir), src_len
+                    ),
+                    0,
                 )
-                sink_wires_len_of_range = tuple(
-                    set(
-                        [
-                            wire["length"]
-                            for wire in H_wires + V_wires
-                            if wire["range"] == sink_range
-                        ]
-                    )
+                sink_wires = get_wires_by_beg(
+                    get_wires_by_len(
+                        get_wires_by_dir(wires_of_lane, sink_dir), sink_len
+                    ),
+                    1,
                 )
-                for wire_len in src_wires_len_of_range:
-                    exact_drive_combs = tuple(
-                        [(wire_len, x) for x in sink_wires_len_of_range]
+                src_wires = sorted(
+                    src_wires,
+                    key=lambda wire: (wire[1]["ble"], wire[1]["wire_cnt"]),
+                )
+                sink_wires = sorted(
+                    sink_wires,
+                    key=lambda wire: (wire[1]["ble"], wire[1]["wire_cnt"]),
+                )
+                # print('drive_comb: %s' % str(drive_comb))
+                # for i in src_wires:
+                #     print(i[0])
+                # for i in sink_wires:
+                #     print(i[0])
+                num_src_wires = len(src_wires)
+                num_sink_wires = len(sink_wires)
+                w = min(num_src_wires, num_sink_wires)
+                # TODO: when num_src_wires is great than num_sink_wires, there are two ways to assign src_wires to sink_wires, for now i am abeying to the rule that every src_wire will connect to a sink_wire
+                for index, src_wire in enumerate(src_wires):
+                    # # uncomment the following `if` when every src_wire will connect to a sink_wire
+                    if index == num_sink_wires:
+                        break
+                    t = index
+                    sink_t = offset_formula(t, w)
+                    try:
+                        assert sink_t >= 0 and sink_t < num_sink_wires
+                    except:
+                        print(
+                            "sink_t: %s" % sink_t,
+                            "num_sink_wires: %s" % num_sink_wires,
+                            "src_t: %s" % t,
+                            "num_src_wires: %s" % num_src_wires,
+                        )
+                    sink_wire = sink_wires[sink_t]
+                    # print(10*'-', sink_wire[0])
+                    G.add_edge(
+                        src_wire[0],
+                        sink_wire[0],
+                        mux_type="L%d" % sink_wire[1]["length"],
                     )
-                    for drive_comb in exact_drive_combs:
-                        src_len = drive_comb[0]
-                        sink_len = drive_comb[1]
-                        src_wires = get_wires_by_beg(
-                            get_wires_by_len(
-                                get_wires_by_dir(wires_of_lane, src_dir), src_len
-                            ),
-                            0,
-                        )
-                        sink_wires = get_wires_by_beg(
-                            get_wires_by_len(
-                                get_wires_by_dir(wires_of_lane, sink_dir), sink_len
-                            ),
-                            1,
-                        )
-                        src_wires = sorted(
-                            src_wires,
-                            key=lambda wire: (wire[1]["ble"], wire[1]["wire_cnt"]),
-                        )
-                        sink_wires = sorted(
-                            sink_wires,
-                            key=lambda wire: (wire[1]["ble"], wire[1]["wire_cnt"]),
-                        )
-                        # print('drive_comb: %s' % str(drive_comb))
-                        # for i in src_wires:
-                        #     print(i[0])
-                        # for i in sink_wires:
-                        #     print(i[0])
-                        num_src_wires = len(src_wires)
-                        num_sink_wires = len(sink_wires)
-                        w = min(num_src_wires, num_sink_wires)
-                        # TODO: when num_src_wires is great than num_sink_wires, there are two ways to assign src_wires to sink_wires, for now i am abeying to the rule that every src_wire will connect to a sink_wire
-                        for index, src_wire in enumerate(src_wires):
-                            # # uncomment the following `if` when every src_wire will connect to a sink_wire
-                            if index == num_sink_wires:
-                                break
-                            t = index
-                            sink_t = offset_formula(t, w)
-                            try:
-                                assert sink_t >= 0 and sink_t < num_sink_wires
-                            except:
-                                print(
-                                    "sink_t: %s" % sink_t,
-                                    "num_sink_wires: %s" % num_sink_wires,
-                                    "src_t: %s" % t,
-                                    "num_src_wires: %s" % num_src_wires,
-                                )
-                            sink_wire = sink_wires[sink_t]
-                            # print(10*'-', sink_wire[0])
-                            G.add_edge(
-                                src_wire[0],
-                                sink_wire[0],
-                                mux_type="L%d" % sink_wire[1]["length"],
-                            )
     if Interlane_con_valid:
         wires_by_ble = {}
         for node in G.nodes(data=True):
@@ -593,7 +622,7 @@ def add_out2sb_edge(G):
     #     for ble_out in ble_outputs:
     #         G.add_edge(ble_out[0], node, mux_type='L%d'%attrs['length'])
     for node, attrs in wire_beg_nodes:
-        if attrs["wire_range"] in [range for _, range in out_rules]:
+        if 'L%d'%attrs["length"] in expand_range_2_wires([ran for _, ran in out_rules]):
             ble = attrs["ble"]
             ble_outputs = get_output_by_ble(ble)
             for ble_out in ble_outputs:
@@ -889,7 +918,7 @@ def generate_arch_file(G):
     arch_file_inst = os.path.basename(routing_arch)
     with open(os.path.join(target_dir, arch_file_inst), "wt") as fp:
         for line in arch_file_template:
-            line = re.sub(switch_pat, switch_inst_str, line)
+            # line = re.sub(switch_pat, switch_inst_str, line)
             line = re.sub(segment_pat, segment_inst_str, line)
             line = re.sub(lim_pat, lim_inst_str, line)
             line = re.sub(leim_pat, leim_inst_str, line)

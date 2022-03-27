@@ -1,0 +1,5 @@
+tmp/
+arch/arch_inst/
+arch/top_arch_inst/
+results/
+scp_files/
